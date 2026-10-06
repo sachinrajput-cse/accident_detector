@@ -5,14 +5,12 @@ const telemetrySchema = new mongoose.Schema(
     deviceId: {
       type: String,
       required: true,
-      index: true,
+      trim: true,
     },
 
     timestamp: {
       type: Date,
-      required: true,
       default: Date.now,
-      index: true,
     },
 
     accelerometer: {
@@ -55,10 +53,12 @@ const telemetrySchema = new mongoose.Schema(
         type: Number,
         default: null,
       },
+
       longitude: {
         type: Number,
         default: null,
       },
+
       speed: {
         type: Number,
         default: null,
@@ -70,6 +70,4 @@ const telemetrySchema = new mongoose.Schema(
   }
 );
 
-const Telemetry = mongoose.model("Telemetry", telemetrySchema);
-
-module.exports = Telemetry;
+module.exports = mongoose.model("Telemetry", telemetrySchema);

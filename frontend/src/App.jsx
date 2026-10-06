@@ -5,63 +5,88 @@ import SensorChart from "./SensorChart";
 
 function App() {
   const [dashboard, setDashboard] = useState(null);
+  const [latestSensor, setLatestSensor] = useState(null);
+  const [sensorHistory, setSensorHistory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  // Sensor history for chart
-  const [sensorHistory, setSensorHistory] = useState([]);
-
-  // Latest sensor reading
-  const [latestSensor, setLatestSensor] = useState(null);
+  // ==========================================
+  // FETCH DASHBOARD
+  // ==========================================
 
   const fetchDashboard = async () => {
     try {
-      // ==========================================
-      // 1. GET DASHBOARD DATA
-      // ==========================================
-      const dashboardResponse = await axios.get(
+      const response = await axios.get(
         "http://localhost:5000/api/v1/dashboard"
       );
 
-      setDashboard(dashboardResponse.data.dashboard);
+      const dashboardData = response.data.dashboard;
 
-      // ==========================================
-      // 2. GET LATEST SENSOR DATA
-      // ==========================================
-      //const sensorResponse = await axios.get(
-        //"http://localhost:5000/api/v1/sensors/latest"
-      //);
+      // Save dashboard
+      setDashboard(dashboardData);
 
-      //const sensorData = sensorResponse.data;
+      // ========================================
+      // GET LATEST TELEMETRY FROM DASHBOARD
+      // ========================================
 
-      // Save latest sensor data
-      //setLatestSensor(sensorData);
+      const telemetry =
+        dashboardData.devices?.[0]?.latestTelemetry;
 
-      // Add new sensor reading to history
-      //setSensorHistory((previousData) => {
-      //   const newHistory = [
-      //     ...previousData,
-      //     sensorData
-      //   ];
+      if (telemetry) {
+        // Save latest sensor
+        setLatestSensor(telemetry);
 
-      //   // Keep only latest 20 readings
-      //   return newHistory.slice(-20);
-      // });
+        // Add telemetry to history
+        setSensorHistory((previousData) => {
+          const newHistory = [
+            ...previousData,
+            telemetry,
+          ];
+
+          // Keep only last 20 readings
+          return newHistory.slice(-20);
+        });
+      }
 
       setError("");
     } catch (err) {
-      console.error("Dashboard/Sensor error:", err);
+      console.error("Dashboard error:", err);
 
-      setError("Unable to connect to backend");
+      if (err.response) {
+        console.error(
+          "Backend response:",
+          err.response.data
+        );
+
+        setError(
+          `Backend error: ${err.response.status}`
+        );
+      } else if (err.request) {
+        console.error(
+          "Backend did not respond:",
+          err.request
+        );
+
+        setError(
+          "Backend did not respond"
+        );
+      } else {
+        console.error(
+          "Request error:",
+          err.message
+        );
+
+        setError(err.message);
+      }
     } finally {
       setLoading(false);
     }
   };
 
   // ==========================================
-  // FETCH DATA WHEN PAGE LOADS
-  // AND EVERY 5 SECONDS
+  // LOAD + REFRESH EVERY 5 SECONDS
   // ==========================================
+
   useEffect(() => {
     fetchDashboard();
 
@@ -69,12 +94,15 @@ function App() {
       fetchDashboard();
     }, 5000);
 
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+    };
   }, []);
 
   // ==========================================
   // LOADING
   // ==========================================
+
   if (loading) {
     return (
       <div className="loading">
@@ -86,13 +114,15 @@ function App() {
   // ==========================================
   // ERROR
   // ==========================================
+
   if (error) {
     return (
       <div className="error">
         <h2>{error}</h2>
 
         <p>
-          Make sure your backend is running on port 5000.
+          Make sure your backend is running on
+          port 5000.
         </p>
 
         <button onClick={fetchDashboard}>
@@ -102,7 +132,10 @@ function App() {
     );
   }
 
-  // Prevent crash if dashboard is empty
+  // ==========================================
+  // NO DASHBOARD
+  // ==========================================
+
   if (!dashboard) {
     return (
       <div className="error">
@@ -113,12 +146,16 @@ function App() {
 
   const stats = dashboard.statistics;
 
+  // ==========================================
+  // MAIN DASHBOARD
+  // ==========================================
+
   return (
     <div className="dashboard">
 
-      {/* ==========================================
+      {/* ======================================
           HEADER
-      ========================================== */}
+      ====================================== */}
 
       <header className="header">
 
@@ -134,93 +171,74 @@ function App() {
 
         <div className="system-status">
           <span className="status-dot"></span>
-
           System Online
         </div>
 
       </header>
 
 
-      {/* ==========================================
+      {/* ======================================
           STATISTICS
-      ========================================== */}
+      ====================================== */}
 
       <section className="stats-grid">
 
         <div className="stat-card">
           <h3>Total Vehicles</h3>
-
-          <p>
-            {stats.totalDevices}
-          </p>
+          <p>{stats.totalDevices}</p>
         </div>
-
 
         <div className="stat-card online">
           <h3>Online Vehicles</h3>
-
-          <p>
-            {stats.onlineDevices}
-          </p>
+          <p>{stats.onlineDevices}</p>
         </div>
-
 
         <div className="stat-card offline">
           <h3>Offline Vehicles</h3>
-
-          <p>
-            {stats.offlineDevices}
-          </p>
+          <p>{stats.offlineDevices}</p>
         </div>
-
 
         <div className="stat-card danger">
           <h3>Active Incidents</h3>
-
-          <p>
-            {stats.activeIncidents}
-          </p>
+          <p>{stats.activeIncidents}</p>
         </div>
 
       </section>
 
 
-      {/* ==========================================
+      {/* ======================================
           LATEST SENSOR DATA
-      ========================================== */}
+      ====================================== */}
 
       <section className="panel">
 
-        <h2>
-          Latest Sensor Data
-        </h2>
+        <h2>Latest Sensor Data</h2>
 
-        {latestSensor ? (
+        {!latestSensor ? (
+
+          <p>
+            No sensor data available.
+          </p>
+
+        ) : (
 
           <div className="sensor-data">
 
             {/* Device */}
 
             <div className="sensor-item">
-
-              <h3>
-                Device
-              </h3>
+              <h3>Device</h3>
 
               <p>
                 {latestSensor.deviceId}
               </p>
-
             </div>
 
 
             {/* Timestamp */}
 
             <div className="sensor-item">
-
-              <h3>
-                Timestamp
-              </h3>
+              <h3>Timestamp</h3>
 
               <p>
                 {latestSensor.timestamp
@@ -229,196 +247,118 @@ function App() {
                     ).toLocaleString()
                   : "N/A"}
               </p>
-
             </div>
 
 
-            {/* Accident Event */}
+            {/* Accelerometer */}
 
             <div className="sensor-item">
-
-              <h3>
-                Event
-              </h3>
+              <h3>Accel X</h3>
 
               <p>
-                {latestSensor.event?.type || "N/A"}
+                {latestSensor.accelerometer?.x ?? 0}
               </p>
+            </div>
 
+            <div className="sensor-item">
+              <h3>Accel Y</h3>
+
+              <p>
+                {latestSensor.accelerometer?.y ?? 0}
+              </p>
+            </div>
+
+            <div className="sensor-item">
+              <h3>Accel Z</h3>
+
+              <p>
+                {latestSensor.accelerometer?.z ?? 0}
+              </p>
             </div>
 
 
-            {/* Confidence */}
+            {/* Gyroscope */}
 
             <div className="sensor-item">
-
-              <h3>
-                Confidence
-              </h3>
+              <h3>Gyro X</h3>
 
               <p>
-                {latestSensor.event?.confidence !== undefined
-                  ? `${(
-                      latestSensor.event.confidence * 100
-                    ).toFixed(1)}%`
-                  : "N/A"}
+                {latestSensor.gyroscope?.x ?? 0}
               </p>
-
             </div>
 
-
-            {/* Acceleration X */}
-
             <div className="sensor-item">
-
-              <h3>
-                Accel X
-              </h3>
+              <h3>Gyro Y</h3>
 
               <p>
-                {latestSensor.imu?.accelX ?? 0}
+                {latestSensor.gyroscope?.y ?? 0}
               </p>
-
             </div>
 
-
-            {/* Acceleration Y */}
-
             <div className="sensor-item">
-
-              <h3>
-                Accel Y
-              </h3>
+              <h3>Gyro Z</h3>
 
               <p>
-                {latestSensor.imu?.accelY ?? 0}
+                {latestSensor.gyroscope?.z ?? 0}
               </p>
-
-            </div>
-
-
-            {/* Acceleration Z */}
-
-            <div className="sensor-item">
-
-              <h3>
-                Accel Z
-              </h3>
-
-              <p>
-                {latestSensor.imu?.accelZ ?? 0}
-              </p>
-
-            </div>
-
-
-            {/* Gyroscope X */}
-
-            <div className="sensor-item">
-
-              <h3>
-                Gyro X
-              </h3>
-
-              <p>
-                {latestSensor.imu?.gyroX ?? 0}
-              </p>
-
-            </div>
-
-
-            {/* Gyroscope Y */}
-
-            <div className="sensor-item">
-
-              <h3>
-                Gyro Y
-              </h3>
-
-              <p>
-                {latestSensor.imu?.gyroY ?? 0}
-              </p>
-
-            </div>
-
-
-            {/* Gyroscope Z */}
-
-            <div className="sensor-item">
-
-              <h3>
-                Gyro Z
-              </h3>
-
-              <p>
-                {latestSensor.imu?.gyroZ ?? 0}
-              </p>
-
-            </div>
-
-
-            {/* Temperature */}
-
-            <div className="sensor-item">
-
-              <h3>
-                Temperature
-              </h3>
-
-              <p>
-                {latestSensor.imu?.temperature ?? 0}
-                {" °C"}
-              </p>
-
             </div>
 
 
             {/* Speed */}
 
             <div className="sensor-item">
-
-              <h3>
-                Speed
-              </h3>
+              <h3>Speed</h3>
 
               <p>
-                {latestSensor.gps?.speedKmph ?? 0}
-                {" km/h"}
+                {latestSensor.gps?.speed ?? 0} km/h
               </p>
+            </div>
 
+
+            {/* Latitude */}
+
+            <div className="sensor-item">
+              <h3>Latitude</h3>
+
+              <p>
+                {latestSensor.gps?.latitude ?? 0}
+              </p>
+            </div>
+
+
+            {/* Longitude */}
+
+            <div className="sensor-item">
+              <h3>Longitude</h3>
+
+              <p>
+                {latestSensor.gps?.longitude ?? 0}
+              </p>
             </div>
 
 
             {/* Vibration */}
 
             <div className="sensor-item">
-
-              <h3>
-                Vibration Events
-              </h3>
+              <h3>Vibration</h3>
 
               <p>
-                {latestSensor.vibration?.events ?? 0}
+                {latestSensor.vibration
+                  ? "DETECTED"
+                  : "NORMAL"}
               </p>
-
             </div>
 
           </div>
-
-        ) : (
-
-          <p>
-            No sensor data available.
-          </p>
 
         )}
 
       </section>
 
 
-      {/* ==========================================
-          SENSOR CHART
-      ========================================== */}
+      {/* ======================================
+          LIVE SENSOR HISTORY
+      ====================================== */}
 
       <section className="panel">
 
@@ -443,16 +383,15 @@ function App() {
       </section>
 
 
-      {/* ==========================================
-          MAIN CONTENT
-      ========================================== */}
+      {/* ======================================
+          VEHICLES + ACTIVE INCIDENTS
+      ====================================== */}
 
       <section className="content-grid">
 
-
-        {/* ========================================
-            VEHICLES
-        ======================================== */}
+        {/* ====================================
+            VEHICLE STATUS
+        ==================================== */}
 
         <div className="panel">
 
@@ -468,57 +407,55 @@ function App() {
 
           ) : (
 
-            dashboard.devices.map((device) => (
+            dashboard.devices.map(
+              (device) => (
 
-              <div
-                className="vehicle"
-                key={device.deviceId}
-              >
+                <div
+                  className="vehicle"
+                  key={device.deviceId}
+                >
 
-                <div>
+                  <div>
 
-                  <h3>
-                    {device.deviceName}
-                  </h3>
+                    <h3>
+                      {device.deviceName}
+                    </h3>
 
-                  <p>
-                    {device.deviceId}
-                  </p>
+                    <p>
+                      {device.deviceId}
+                    </p>
+
+                  </div>
+
+                  <span
+                    className={
+                      device.status === "ONLINE"
+                        ? "badge online-badge"
+                        : "badge offline-badge"
+                    }
+                  >
+                    {device.status}
+                  </span>
 
                 </div>
 
-
-                <span
-                  className={
-                    device.status === "ONLINE"
-                      ? "badge online-badge"
-                      : "badge offline-badge"
-                  }
-                >
-
-                  {device.status}
-
-                </span>
-
-              </div>
-
-            ))
+              )
+            )
 
           )}
 
         </div>
 
 
-        {/* ========================================
+        {/* ====================================
             ACTIVE INCIDENTS
-        ======================================== */}
+        ==================================== */}
 
         <div className="panel incident-panel">
 
           <h2>
             Active Incidents
           </h2>
-
 
           {dashboard.activeIncidents.length === 0 ? (
 
@@ -543,7 +480,8 @@ function App() {
                     </h3>
 
                     <p>
-                      Vehicle: {incident.deviceId}
+                      Vehicle:{" "}
+                      {incident.deviceId}
                     </p>
 
                     <p>
@@ -552,11 +490,8 @@ function App() {
 
                   </div>
 
-
                   <span className="severity">
-
                     {incident.severity}
-
                   </span>
 
                 </div>
@@ -571,16 +506,15 @@ function App() {
       </section>
 
 
-      {/* ==========================================
+      {/* ======================================
           RECENT INCIDENTS
-      ========================================== */}
+      ====================================== */}
 
       <section className="panel">
 
         <h2>
           Recent Incidents
         </h2>
-
 
         {dashboard.recentIncidents.length === 0 ? (
 
@@ -604,16 +538,13 @@ function App() {
                     {incident.deviceId}
                   </span>
 
-
                   <span>
                     {incident.type}
                   </span>
 
-
                   <span>
                     {incident.severity}
                   </span>
-
 
                   <span>
                     {incident.status}
