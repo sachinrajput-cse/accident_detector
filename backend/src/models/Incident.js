@@ -41,6 +41,7 @@ const incidentSchema = new mongoose.Schema(
         "CONFIRMED",
         "DISMISSED",
         "RESOLVED",
+        "CANCELLED",
       ],
       default: "DETECTED",
     },
