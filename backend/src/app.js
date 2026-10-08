@@ -16,6 +16,7 @@ app.use(
     origin: [
       "http://localhost:5173",
       "https://accident-detector-indol.vercel.app",
+      "https://accident-detector-gbf964neh-sachin-666e.vercel.app",
     ],
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
     allowedHeaders: ["Content-Type", "Authorization"],
